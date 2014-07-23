@@ -19,18 +19,16 @@
 ##############################################################################
 
 {
-    'name': 'Driver for the Epson FP-90III Fiscal Printer (Italian)',
+    'name': 'Driver for ePOS-Print XML compatible fiscal printers (TEST)',
     'version': '0.1',
-    'category': 'POS, Fiscal, Italian',
-    'sequence': 14,
-    'summary': 'Fiscal Printer Driver',
+    'category': 'POS, Fiscal, Hardware, Driver',
+    'summary': 'ePOS-Print XML Fiscal Printer Driver',
     'author': 'Leonardo Donelli @ Creativi Quadrati',
-    'website': ['http://learts.glaucus.in', 'http://www.creativiquadrati.it',]
+    'website': 'http://learts.glaucus.in',
     'depends': ['point_of_sale'],
-    'data': [],
-    'js': ['static/src/js/fp90iii.js'],
+    'data': ['account_statement_view.xml'],
+    'js': ['static/src/js/fp90iii.js', 'static/lib/fiscalprint/fiscalprint.js'],
     'installable': True,
     'auto_install': False,
-    'application': True,
 }
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -1,49 +1,44 @@
-function driver(instance) { //module is instance.point_of_sale
+openerp.fp90iii_driver = function(instance) {
 
-    // this object interfaces with the local proxy to communicate to the various hardware devices
-    // connected to the Point of Sale. As the communication only goes from the POS to the proxy,
-    // methods are used both to signal an event, and to fetch information. 
+	/*
+	  There are probably about a thousand better ways to do this,
+	  but the documentation on fiscal printers drivers is scarce.
+	*/
+	instance.point_of_sale.ProxyDevice.include({
+		print_receipt: function(receipt) {
+			var fp90 = new instance.point_of_sale.Driver();
+			fp90.printFiscalReceipt(receipt);
+		}
+	});
 
-    instance.ProxyDevice = instance.web.Class.extend({
+    instance.point_of_sale.Driver = instance.web.Class.extend({
         init: function(options) {
             options = options || {};
-            url = options.url || 'http://localhost:8069';
-            
-            this.weight = 0;
-            this.weighting = false;
-            this.debug_weight = 0;
-            this.use_debug_weight = false;
-
-            this.paying = false;
-            this.default_payment_status = {
-                status: 'waiting',
-                message: '',
-                payment_method: undefined,
-                receipt_client: undefined,
-                receipt_shop:   undefined,
-            };    
-            this.custom_payment_status = this.default_payment_status;
-
-            this.connection = new instance.web.JsonRPC();
-            this.connection.setup(url);
-            this.connection.session_id = _.uniqueId('posproxy');
-            this.bypass_proxy = false;
-            this.notifications = {};
-            
+            url = options.url || 'http://192.168.1.120/cgi-bin/fpmate.cgi';
+			this.fiscalPrinter = new epson.fiscalPrint();
+			this.fiscalPrinter.onreceive = function(res, tag_list_names, add_info) {
+				console.log(res);
+				console.log(tag_list_names);
+				console.log(add_info);
+			}
+			this.fiscalPrinter.onerror = function() {
+				alert('HTTP/timeout or other net error. This is not a fiscal printer internal error!');
+			}
         },
+
 		/*
 		  Prints a sale item line.
 		*/
 		printRecItem: function(args) {
 			tag = '<printRecItem'
-				+ ' description="' + args.description || '' + '"'
-				+ ' quantity="' + args.quantity || '' + '"'
-				+ ' unitPrice="' + args.unitPrice || '' + '"'
-				+ ' department="' + args.department || '' + '"'
-				+ ' justification="' + args.justification || '' + '"'
-				+ ' operator="' + args.operator + '"'
+				+ ' description="' + (args.description || '') + '"'
+				+ ' quantity="' + (args.quantity || '1') + '"'
+				+ ' unitPrice="' + (args.unitPrice || '') + '"'
+				+ ' department="' + (args.department || '1') + '"'
+				+ ' justification="' + (args.justification || '1') + '"'
+				+ ' operator="' + (args.operator || '1') + '"'
 				+ ' />';
-			console.log(tag);
+			return tag;
 		},
 
 		/*
@@ -51,13 +46,14 @@ function driver(instance) { //module is instance.point_of_sale
 		*/
 		printRecItemAdjustment: function(args) {
 			tag = '<printRecItemAdjustment'
-				+ ' operator="' + args.operator || '' + '"'
-				+ ' adjustmentType="' + args.adjustmentType || 0 + '"'
-				+ ' description="' + args.description || '' + '"'
-				+ ' department="' + args.department || '' + '"'
-				+ ' justification="' + args.justification || '' + '"'
+				+ ' operator="' + (args.operator || '1') + '"'
+				+ ' adjustmentType="' + (args.adjustmentType || 0) + '"'
+				+ ' description="' + (args.description || '' ) + '"'
+				+ ' amount="' + (args.amount || '') + '"'
+				// + ' department="' + (args.department || '') + '"'
+				+ ' justification="' + (args.justification || '2') + '"'
 				+ ' />';
-			console.log(tag);
+			return tag;
 		},
 
 		/*
@@ -65,40 +61,59 @@ function driver(instance) { //module is instance.point_of_sale
 		*/
 		printRecTotal: function(args) {
 			tag = '<printRecTotal'
-				+ ' operator="' + args.operator || '' + '"'
-				+ ' description="' + args.description || 'Grazie!' + '"'
-				+ ' payment="' + args.payment || '' + '"'
-				+ ' paymentType="' + args.paymentType || '' + '"'
+				+ ' operator="' + (args.operator || '1') + '"'
+				+ ' description="' + (args.description || 'Pagamento') + '"'
+				+ ' payment="' + (args.payment || '') + '"'
+				+ ' paymentType="' + (args.paymentType || '0') + '"'
 				+ ' />';
-			console.log(tag);
+			return tag;
 		},
 
 		/*
 		  Prints a receipt
 		*/
 		printFiscalReceipt: function(receipt) {
+			var self = this;
+			var xml = '<printerFiscalReceipt><beginFiscalReceipt />';
 			_.each(receipt.orderlines, function(l, i, list) {
-				this.printRecItem({
+				xml += self.printRecItem({
 					description: l.product_name,
 					quantity: l.quantity,
 					unitPrice: l.price,
 				});
 				if (l.discount) {
-					this.printRecItemAdjustment({
+					xml += self.printRecItemAdjustment({
 						adjustmentType: 0,
-						description: 'Prova testo sconto',
-						amount: l.discount,
+						description: 'Sconto ' + l.discount + '%',
+						amount: l.quantity * l.price - l.price_display,
 					});
 				}
 			});
 			_.each(receipt.paymentlines, function(l, i, list) {
-				this.printRecTotal({
+				xml += self.printRecTotal({
 					payment: l.amount,
-					paymentType: 0,
+					paymentType: l.type,
+					description: l.journal,
 				});
 			});
+			xml += '<endFiscalReceipt /></printerFiscalReceipt>';
+			this.fiscalPrinter.send(url, xml);
+			console.log(xml);
 		},
 
     });
 
+	/*
+	  Overwrite Paymentline.export_for_printing() in order
+	  to make it export the payment type that must be passed
+      to the fiscal printer.
+	*/
+	var original = instance.point_of_sale.Paymentline.prototype.export_for_printing;
+	instance.point_of_sale.Paymentline = instance.point_of_sale.Paymentline.extend({
+		export_for_printing: function() {
+			var res = original.apply(this, arguments);
+			res.type = this.cashregister.get('journal').fiscalprinter_payment_type;
+			return res;
+		}
+	});
 }
