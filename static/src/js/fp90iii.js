@@ -1,5 +1,21 @@
 openerp.fp90iii_driver = function(instance) {
 
+	instance.point_of_sale.PosWidget.include({
+		build_widgets: function() {
+			this._super();
+			var self = this;
+			this.close_fiscal = new instance.point_of_sale.HeaderButtonWidget(this, {
+				label: instance.web._t('Chiusura fiscale'),
+				action: function() {
+					var p = new instance.point_of_sale.Driver();
+					p.printFiscalReport();
+					self.try_close();
+				},
+			});
+			this.close_fiscal.appendTo(this.$('#rightheader'));
+		}
+	});
+
 	/*
 	  There are probably about a thousand better ways to do this,
 	  but the documentation on fiscal printers drivers is scarce.
@@ -99,6 +115,14 @@ openerp.fp90iii_driver = function(instance) {
 			xml += '<endFiscalReceipt /></printerFiscalReceipt>';
 			this.fiscalPrinter.send(url, xml);
 			console.log(xml);
+		},
+
+		printFiscalReport: function() {
+			var xml = '<printerFiscalReport>';
+			xml += '<displayText operator="1" data="Chiusura fiscale" />';
+			xml += '<printZReport operator="1" />';
+			xml += '</printerFiscalReport>';
+			this.fiscalPrinter.send(url, xml);
 		},
 
 	});
