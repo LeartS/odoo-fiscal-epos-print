@@ -11,10 +11,10 @@ openerp.fp90iii_driver = function(instance) {
 		}
 	});
 
-    instance.point_of_sale.Driver = instance.web.Class.extend({
-        init: function(options) {
-            options = options || {};
-            url = options.url || 'http://192.168.1.120/cgi-bin/fpmate.cgi';
+	instance.point_of_sale.Driver = instance.web.Class.extend({
+		init: function(options) {
+			options = options || {};
+			url = options.url || 'http://192.168.1.120/cgi-bin/fpmate.cgi';
 			this.fiscalPrinter = new epson.fiscalPrint();
 			this.fiscalPrinter.onreceive = function(res, tag_list_names, add_info) {
 				console.log(res);
@@ -24,7 +24,7 @@ openerp.fp90iii_driver = function(instance) {
 			this.fiscalPrinter.onerror = function() {
 				alert('HTTP/timeout or other net error. This is not a fiscal printer internal error!');
 			}
-        },
+		},
 
 		/*
 		  Prints a sale item line.
@@ -101,12 +101,12 @@ openerp.fp90iii_driver = function(instance) {
 			console.log(xml);
 		},
 
-    });
+	});
 
 	/*
 	  Overwrite Paymentline.export_for_printing() in order
 	  to make it export the payment type that must be passed
-      to the fiscal printer.
+	  to the fiscal printer.
 	*/
 	var original = instance.point_of_sale.Paymentline.prototype.export_for_printing;
 	instance.point_of_sale.Paymentline = instance.point_of_sale.Paymentline.extend({
