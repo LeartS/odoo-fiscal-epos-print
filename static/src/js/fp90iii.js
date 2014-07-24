@@ -1,15 +1,19 @@
 openerp.fp90iii_driver = function(instance) {
 
-	instance.point_of_sale.PosWidget.include({
+	posModule = instance.point_of_sale;
+
+	posModule.PosWidget.include({
 		build_widgets: function() {
 			this._super();
 			var self = this;
-			this.close_fiscal = new instance.point_of_sale.HeaderButtonWidget(this, {
+			this.close_fiscal = new posModule.HeaderButtonWidget(this, {
 				label: instance.web._t('Chiusura fiscale'),
 				action: function() {
-					var p = new instance.point_of_sale.Driver();
-					p.printFiscalReport();
-					self.try_close();
+					var p = new posModule.Driver();
+					if ( confirm(instance.web._t('Effettuare davvero la chiusura fiscale?'))) {
+						p.printFiscalReport();
+						self.try_close();
+					}
 				},
 			});
 			this.close_fiscal.appendTo(this.$('#rightheader'));
@@ -20,14 +24,14 @@ openerp.fp90iii_driver = function(instance) {
 	  There are probably about a thousand better ways to do this,
 	  but the documentation on fiscal printers drivers is scarce.
 	*/
-	instance.point_of_sale.ProxyDevice.include({
+	posModule.ProxyDevice.include({
 		print_receipt: function(receipt) {
-			var fp90 = new instance.point_of_sale.Driver();
+			var fp90 = new posModule.Driver();
 			fp90.printFiscalReceipt(receipt);
 		}
 	});
 
-	instance.point_of_sale.Driver = instance.web.Class.extend({
+	posModule.Driver = instance.web.Class.extend({
 		init: function(options) {
 			options = options || {};
 			url = options.url || 'http://192.168.1.120/cgi-bin/fpmate.cgi';
@@ -132,12 +136,13 @@ openerp.fp90iii_driver = function(instance) {
 	  to make it export the payment type that must be passed
 	  to the fiscal printer.
 	*/
-	var original = instance.point_of_sale.Paymentline.prototype.export_for_printing;
-	instance.point_of_sale.Paymentline = instance.point_of_sale.Paymentline.extend({
+	var original = posModule.Paymentline.prototype.export_for_printing;
+	posModule.Paymentline = posModule.Paymentline.extend({
 		export_for_printing: function() {
 			var res = original.apply(this, arguments);
 			res.type = this.cashregister.get('journal').fiscalprinter_payment_type;
 			return res;
 		}
 	});
+
 }
