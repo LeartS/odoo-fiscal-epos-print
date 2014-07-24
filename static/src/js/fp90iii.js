@@ -1,4 +1,4 @@
-openerp.fp90iii_driver = function(instance) {
+openerp.fiscal_epos_print = function(instance) {
 
 	posModule = instance.point_of_sale;
 
